@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Merger</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Excel Merger</h1>
+
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="merge">Merge Files</button>
+            <button class="mode-tab" data-mode="convert">Convert to Excel</button>
+        </div>
+
+        <!-- ========== MERGE MODE ========== -->
+        <div id="mode-merge" class="mode-content active">
+
+            <!-- Step 1: Upload -->
+            <section id="step-upload" class="step active">
+                <h2>1. Upload Files</h2>
+                <p class="file-hint">Supported: .xlsx, .xls, .csv, .tsv, .json, .pdf, .jpg, .png</p>
+                <form id="upload-form">
+                    <div class="file-inputs">
+                        <label class="file-label">
+                            <span class="file-name" id="name1">Choose File 1...</span>
+                            <input type="file" name="file1" id="file1" accept="{{ supported_extensions }}">
+                        </label>
+                        <label class="file-label">
+                            <span class="file-name" id="name2">Choose File 2...</span>
+                            <input type="file" name="file2" id="file2" accept="{{ supported_extensions }}">
+                        </label>
+                    </div>
+                    <div id="conversion-notice" class="conversion-notice" style="display:none"></div>
+                    <button type="submit" class="btn" id="btn-upload">Upload</button>
+                </form>
+            </section>
+
+            <!-- Step 2: Configure -->
+            <section id="step-config" class="step">
+                <h2>2. Configure Merge</h2>
+
+                <div class="form-group">
+                    <label>Merge Type</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="merge_type" value="append" checked> Append rows</label>
+                        <label><input type="radio" name="merge_type" value="join"> Join on a column</label>
+                        <label><input type="radio" name="merge_type" value="sheets"> Merge sheets</label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="sheet-select-group">
+                    <div class="sheet-row">
+                        <label>File 1 sheet
+                            <select id="sheet1"></select>
+                        </label>
+                        <label>File 2 sheet
+                            <select id="sheet2"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="join-options" style="display:none">
+                    <label>Join column
+                        <select id="join-column"></select>
+                    </label>
+                    <label>Join type
+                        <select id="join-how">
+                            <option value="inner">Inner</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                            <option value="outer">Outer</option>
+                        </select>
+                    </label>
+                </div>
+
+                <button class="btn" id="btn-merge">Merge</button>
+                <button class="btn btn-secondary" id="btn-back-upload">Back</button>
+            </section>
+
+            <!-- Step 3: Preview & Download -->
+            <section id="step-preview" class="step">
+                <h2>3. Preview & Download</h2>
+                <p id="merge-info"></p>
+                <div class="table-wrap">
+                    <table id="preview-table">
+                        <thead id="preview-head"></thead>
+                        <tbody id="preview-body"></tbody>
+                    </table>
+                </div>
+                <div class="btn-row">
+                    <a href="/download" class="btn" id="btn-download">Download merged.xlsx</a>
+                    <button class="btn btn-secondary" id="btn-back-config">Back</button>
+                    <button class="btn btn-secondary" id="btn-start-over">Start Over</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- ========== CONVERT MODE ========== -->
+        <div id="mode-convert" class="mode-content">
+
+            <section id="convert-upload" class="step active">
+                <h2>Upload a File to Convert</h2>
+                <p class="file-hint">Supported: .csv, .tsv, .json, .pdf, .jpg, .png</p>
+                <form id="convert-form">
+                    <div class="file-inputs">
+                        <label class="file-label file-label-wide">
+                            <span class="file-name" id="convert-name">Choose a file...</span>
+                            <input type="file" name="file" id="convert-file" accept=".csv,.tsv,.json,.pdf,.jpg,.jpeg,.png">
+                        </label>
+                    </div>
+                    <button type="submit" class="btn" id="btn-convert">Convert to Excel</button>
+                </form>
+            </section>
+
+            <section id="convert-preview" class="step">
+                <h2>Preview & Download</h2>
+                <p id="convert-info"></p>
+                <div class="table-wrap">
+                    <table id="convert-table">
+                        <thead id="convert-head"></thead>
+                        <tbody id="convert-body"></tbody>
+                    </table>
+                </div>
+                <div class="btn-row">
+                    <a href="/download-converted" class="btn" id="btn-download-converted">Download converted.xlsx</a>
+                    <button class="btn btn-secondary" id="btn-convert-again">Convert Another</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Spinner overlay -->
+        <div id="spinner" class="spinner-overlay" style="display:none">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
