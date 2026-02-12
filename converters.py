@@ -227,7 +227,7 @@ def _convert_image(input_path: str, output_path: str) -> None:
 
 
 def _convert_pdf(input_path: str, output_path: str) -> None:
-    """Convert PDF to Excel: extract tables, fall back to text."""
+    """Convert PDF to Excel: extract transaction rows from credit card statements."""
     try:
         import pdfplumber
     except ImportError:
@@ -235,48 +235,45 @@ def _convert_pdf(input_path: str, output_path: str) -> None:
             "PDF conversion requires pdfplumber. "
             "Install it with: pip install pdfplumber"
         )
+    import re
 
-    all_rows = []
-    has_tables = False
+    # Pattern: MM/DD at start, optional second MM/DD, description, then $amount
+    txn_re = re.compile(
+        r'^(\d{2}/\d{2})\s+'           # Trans. date
+        r'(?:(\d{2}/\d{2})\s+)?'       # Post date (optional)
+        r'(.+?)\s+'                     # Description
+        r'(-?\$[\d,]+\.\d{2})\b'        # Amount
+    )
 
+    transactions = []
     try:
         with pdfplumber.open(input_path) as pdf:
             for page in pdf.pages:
-                tables = page.extract_tables()
-                if tables:
-                    has_tables = True
-                    for table in tables:
-                        all_rows.extend(table)
-                else:
-                    # Fallback: extract text lines
-                    text = page.extract_text()
-                    if text:
-                        for line in text.split("\n"):
-                            line = line.strip()
-                            if line:
-                                # Split on multiple spaces to approximate columns
-                                cells = [c.strip() for c in line.split("  ") if c.strip()]
-                                all_rows.append(cells)
+                text = page.extract_text()
+                if not text:
+                    continue
+                for line in text.split('\n'):
+                    m = txn_re.match(line.strip())
+                    if m:
+                        amount = m.group(4)
+                        # Skip negative amounts (payments, credits, adjustments)
+                        if amount.startswith("-"):
+                            continue
+                        trans_date = m.group(1)
+                        post_date = m.group(2) or ""
+                        description = m.group(3).strip()
+                        transactions.append([
+                            trans_date, post_date, description, amount
+                        ])
     except Exception as exc:
         raise ConversionError(f"Failed to read PDF: {exc}")
 
-    if not all_rows:
-        raise ConversionError("PDF contains no extractable text or tables.")
+    if not transactions:
+        raise ConversionError(
+            "No transaction rows found with the expected format "
+            "(Trans. Date, Post Date, Description, Amount)."
+        )
 
-    # Pad rows to equal length
-    max_cols = max(len(r) for r in all_rows)
-    for row in all_rows:
-        while len(row) < max_cols:
-            row.append("")
-        # Replace None values
-        for i, cell in enumerate(row):
-            if cell is None:
-                row[i] = ""
-
-    # If tables were found, treat first row as header
-    if has_tables and len(all_rows) > 1:
-        df = pd.DataFrame(all_rows[1:], columns=all_rows[0])
-    else:
-        df = pd.DataFrame(all_rows)
-
+    df = pd.DataFrame(transactions,
+                       columns=["Trans. Date", "Post Date", "Description", "Amount"])
     df.to_excel(output_path, index=False, engine="openpyxl")

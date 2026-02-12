@@ -50,6 +50,8 @@
     const convertBody = document.getElementById("convert-body");
     const convertInfo = document.getElementById("convert-info");
     const btnConvertAgain = document.getElementById("btn-convert-again");
+    const convertSheetSelector = document.getElementById("convert-sheet-selector");
+    const convertSheetSelect = document.getElementById("convert-sheet-select");
 
     let fileData = null; // stores sheet info returned by /upload
 
@@ -270,11 +272,41 @@
             }
 
             renderTable(convertHead, convertBody, json);
-            convertInfo.textContent =
-                `Converted "${json.original_name}" - showing ${json.rows.length} of ${json.total_rows} rows.`;
+
+            // Show sheet selector if multiple tables were extracted
+            if (json.sheet_names && json.sheet_names.length > 1) {
+                populateSelect(convertSheetSelect, json.sheet_names);
+                convertSheetSelector.style.display = "block";
+                convertInfo.textContent =
+                    `Converted "${json.original_name}" - ${json.sheet_names.length} tables found. Showing ${json.rows.length} of ${json.total_rows} rows.`;
+            } else {
+                convertSheetSelector.style.display = "none";
+                convertInfo.textContent =
+                    `Converted "${json.original_name}" - showing ${json.rows.length} of ${json.total_rows} rows.`;
+            }
             showConvertStep(convertPreviewSection);
         } catch (err) {
             alert("Conversion failed: " + err.message);
+        } finally {
+            hideSpinner();
+        }
+    });
+
+    // ===== Convert Mode: Sheet Switching =====
+    convertSheetSelect.addEventListener("change", async () => {
+        showSpinner();
+        try {
+            const res = await fetch("/convert-sheet?sheet=" + encodeURIComponent(convertSheetSelect.value));
+            const json = await res.json();
+            if (!res.ok) {
+                alert(json.error || "Failed to load sheet.");
+                return;
+            }
+            renderTable(convertHead, convertBody, json);
+            convertInfo.textContent =
+                `Viewing "${convertSheetSelect.value}" - showing ${json.rows.length} of ${json.total_rows} rows.`;
+        } catch (err) {
+            alert("Failed to load sheet: " + err.message);
         } finally {
             hideSpinner();
         }
@@ -285,6 +317,7 @@
         convertForm.reset();
         convertName.textContent = "Choose a file...";
         convertName.classList.remove("selected");
+        convertSheetSelector.style.display = "none";
         showConvertStep(convertUploadSection);
     });
 })();

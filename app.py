@@ -229,18 +229,49 @@ def convert():
         if os.path.exists(temp_input):
             os.remove(temp_input)
 
-    # Read and return preview
+    # Read and return preview (handle multi-sheet files from PDF conversion)
     try:
-        df = pd.read_excel(output_path, engine="openpyxl")
+        xl = pd.ExcelFile(output_path, engine="openpyxl")
+        sheet_names = xl.sheet_names
+
+        # Preview the first sheet
+        df = xl.parse(sheet_names[0])
+        preview = df.head(20)
+        result = {
+            "columns": list(preview.columns.astype(str)),
+            "rows": preview.fillna("").astype(str).values.tolist(),
+            "total_rows": len(df),
+            "original_name": file.filename,
+        }
+        if len(sheet_names) > 1:
+            result["sheet_names"] = sheet_names
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({"error": f"Failed to read converted file: {exc}"}), 400
+
+
+@app.route("/convert-sheet")
+def convert_sheet():
+    """Return preview of a specific sheet from the converted file."""
+    sheet = request.args.get("sheet")
+    if not sheet:
+        return jsonify({"error": "No sheet specified."}), 400
+
+    sdir = _session_dir()
+    output_path = os.path.join(sdir, "converted.xlsx")
+    if not os.path.exists(output_path):
+        return jsonify({"error": "No converted file found."}), 404
+
+    try:
+        df = pd.read_excel(output_path, sheet_name=sheet, engine="openpyxl")
         preview = df.head(20)
         return jsonify({
             "columns": list(preview.columns.astype(str)),
             "rows": preview.fillna("").astype(str).values.tolist(),
             "total_rows": len(df),
-            "original_name": file.filename,
         })
     except Exception as exc:
-        return jsonify({"error": f"Failed to read converted file: {exc}"}), 400
+        return jsonify({"error": f"Failed to read sheet: {exc}"}), 400
 
 
 @app.route("/download-converted")
