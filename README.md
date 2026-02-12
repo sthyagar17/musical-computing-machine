@@ -13,8 +13,10 @@ A Flask web app for merging Excel files and converting other file formats (CSV, 
 Upload a single file and convert it to `.xlsx` with preview and download:
 - **CSV / TSV** - auto-detects delimiters
 - **JSON** - handles nested objects and arrays via `json_normalize`
-- **PDF** - extracts structured tables, falls back to text extraction
-- **Images (JPG/PNG)** - OCR-based table extraction via Tesseract
+- **PDF (credit card statements)** - extracts transaction rows (Trans. Date, Post Date, Description, Amount) via text parsing; skips payments/credits (negative amounts)
+- **Images (JPG/PNG)** - OCR-based table extraction via Tesseract with image preprocessing (grayscale, 2x upscale, sharpen, contrast boost) for improved accuracy; uses header row positions to define column boundaries
+
+Multi-sheet PDFs are supported with a sheet selector in the preview UI.
 
 Non-Excel files uploaded in merge mode are auto-converted before merging.
 
