@@ -112,9 +112,20 @@ def _convert_image(input_path: str, output_path: str) -> None:
             pytesseract.pytesseract.tesseract_cmd = win_path
 
     try:
+        from PIL import ImageEnhance, ImageFilter
+    except ImportError:
+        pass
+
+    try:
         img = Image.open(input_path)
     except Exception as exc:
         raise ConversionError(f"Cannot open image: {exc}")
+
+    # Preprocess: grayscale, upscale 2x, sharpen, boost contrast for better OCR
+    img = img.convert("L")
+    img = img.resize((img.width * 2, img.height * 2), Image.LANCZOS)
+    img = img.filter(ImageFilter.SHARPEN)
+    img = ImageEnhance.Contrast(img).enhance(2.0)
 
     try:
         ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
@@ -124,35 +135,93 @@ def _convert_image(input_path: str, output_path: str) -> None:
             "Make sure Tesseract OCR is installed on your system."
         )
 
-    # Reconstruct rows from OCR output: group text by block/line numbers
-    rows = {}
+    # Collect words with their positions
+    words = []
     for i, text in enumerate(ocr_data["text"]):
         text = text.strip()
         if not text:
             continue
-        block = ocr_data["block_num"][i]
-        line = ocr_data["line_num"][i]
-        key = (block, line)
-        if key not in rows:
-            rows[key] = []
-        rows[key].append(text)
+        words.append({
+            "text": text,
+            "left": ocr_data["left"][i],
+            "top": ocr_data["top"][i],
+            "width": ocr_data["width"][i],
+            "right": ocr_data["left"][i] + ocr_data["width"][i],
+        })
 
-    if not rows:
+    if not words:
         raise ConversionError("OCR could not extract any text from the image.")
 
-    sorted_rows = [rows[k] for k in sorted(rows.keys())]
+    # Group words into rows by y-coordinate (top), with tolerance for
+    # slight vertical misalignment between words on the same visual row.
+    words.sort(key=lambda w: (w["top"], w["left"]))
+    rows_by_y = []  # list of (avg_y, [words])
+    for w in words:
+        placed = False
+        for row in rows_by_y:
+            if abs(w["top"] - row[0]) <= 15:
+                row[1].append(w)
+                # Update average y
+                row[0] = sum(rw["top"] for rw in row[1]) // len(row[1])
+                placed = True
+                break
+        if not placed:
+            rows_by_y.append([w["top"], [w]])
 
-    # Pad rows to equal length
-    max_cols = max(len(r) for r in sorted_rows)
-    for row in sorted_rows:
-        row.extend([""] * (max_cols - len(row)))
+    # Sort rows top to bottom, words within each row left to right
+    rows_by_y.sort(key=lambda r: r[0])
+    for row in rows_by_y:
+        row[1].sort(key=lambda w: w["left"])
 
-    # Use first row as header if it looks like a header (all strings, no digits)
-    first_row = sorted_rows[0]
-    if all(not cell.replace(".", "").replace(",", "").isdigit() for cell in first_row):
-        df = pd.DataFrame(sorted_rows[1:], columns=first_row)
+    # Use the HEADER ROW (first row by y-position) to define column boundaries.
+    # Header words are well-separated (e.g. "Date", "Description", "Location", "Amount").
+    header_words = rows_by_y[0][1]
+    num_cols = len(header_words)
+
+    if num_cols <= 1:
+        # Single column - just concatenate each row
+        table_rows = [[" ".join(w["text"] for w in r[1])] for r in rows_by_y]
     else:
-        df = pd.DataFrame(sorted_rows)
+        # Define column boundaries using midpoints between header words.
+        col_bounds = []  # list of (col_left, col_right) for each column
+        for ci, hw in enumerate(header_words):
+            if ci == 0:
+                left_bound = 0
+            else:
+                prev_right = header_words[ci - 1]["right"]
+                left_bound = (prev_right + hw["left"]) // 2
+            if ci == num_cols - 1:
+                right_bound = 999999
+            else:
+                next_left = header_words[ci + 1]["left"]
+                right_bound = (hw["right"] + next_left) // 2
+            col_bounds.append((left_bound, right_bound))
+
+        def _get_col_index(x):
+            for ci, (cl, cr) in enumerate(col_bounds):
+                if cl <= x < cr:
+                    return ci
+            return num_cols - 1
+
+        # Build table rows by assigning each word to a column
+        table_rows = []
+        for _, row_words in rows_by_y:
+            cells = [""] * num_cols
+            for w in row_words:
+                ci = _get_col_index(w["left"])
+                if cells[ci]:
+                    cells[ci] += " " + w["text"]
+                else:
+                    cells[ci] = w["text"]
+            table_rows.append(cells)
+
+    # Use first row as header if it looks like a header (all non-numeric)
+    first_row = table_rows[0]
+    if all(not cell.replace(".", "").replace(",", "").replace("/", "").isdigit()
+           for cell in first_row if cell):
+        df = pd.DataFrame(table_rows[1:], columns=first_row)
+    else:
+        df = pd.DataFrame(table_rows)
 
     df.to_excel(output_path, index=False, engine="openpyxl")
 
