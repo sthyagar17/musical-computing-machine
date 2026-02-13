@@ -1,0 +1,154 @@
+{
+  "rules": [
+    {
+      "keywords": ["AMAZON", "AMZN"],
+      "type": "Online",
+      "hl_exp_category": "Shopping",
+      "exp_category": "Online Shopping"
+    },
+    {
+      "keywords": ["TARGET"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "General Shopping"
+    },
+    {
+      "keywords": ["DSW"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "Shoes"
+    },
+    {
+      "keywords": ["WORLD MARKET"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "General Shopping"
+    },
+    {
+      "keywords": ["PAPERSOURCE"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "General Shopping"
+    },
+    {
+      "keywords": ["HOME DEPOT"],
+      "type": "In-Store",
+      "hl_exp_category": "Home",
+      "exp_category": "Home Improvement"
+    },
+    {
+      "keywords": ["CAFE", "CHIPOTLE", "PIZZA", "BAR TACO", "BOMBAY CAFE"],
+      "type": "In-Store",
+      "hl_exp_category": "Dining",
+      "exp_category": "Restaurants"
+    },
+    {
+      "keywords": ["TNF", "NORTHFACE"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "Clothing"
+    },
+    {
+      "keywords": ["ULTA"],
+      "type": "In-Store",
+      "hl_exp_category": "Personal Care",
+      "exp_category": "Beauty"
+    },
+    {
+      "keywords": ["HAIR CUTTERY"],
+      "type": "In-Store",
+      "hl_exp_category": "Personal Care",
+      "exp_category": "Beauty"
+    },
+    {
+      "keywords": ["BROW AND BODY SPA"],
+      "type": "In-Store",
+      "hl_exp_category": "Personal Care",
+      "exp_category": "Beauty"
+    },
+    {
+      "keywords": ["DISTACART"],
+      "type": "Online",
+      "hl_exp_category": "Groceries",
+      "exp_category": "Groceries"
+    },
+    {
+      "keywords": ["WASHINGTON GAS"],
+      "type": "Utility",
+      "hl_exp_category": "Utilities",
+      "exp_category": "Gas"
+    },
+    {
+      "keywords": ["ATT* BILL", "ATT*BILL"],
+      "type": "Utility",
+      "hl_exp_category": "Utilities",
+      "exp_category": "Phone"
+    },
+    {
+      "keywords": ["STATE FARM"],
+      "type": "Recurring",
+      "hl_exp_category": "Insurance",
+      "exp_category": "Insurance"
+    },
+    {
+      "keywords": ["NETFLIX"],
+      "type": "Recurring",
+      "hl_exp_category": "Entertainment",
+      "exp_category": "Streaming"
+    },
+    {
+      "keywords": ["KP MAS"],
+      "type": "In-Store",
+      "hl_exp_category": "Medical",
+      "exp_category": "Medical"
+    },
+    {
+      "keywords": ["ROVECONCEPTS"],
+      "type": "Online",
+      "hl_exp_category": "Home",
+      "exp_category": "Furniture"
+    },
+    {
+      "keywords": ["TRUGREEN"],
+      "type": "Recurring",
+      "hl_exp_category": "Home",
+      "exp_category": "Lawn Care"
+    },
+    {
+      "keywords": ["SAFFORD", "MAZDA"],
+      "type": "In-Store",
+      "hl_exp_category": "Auto",
+      "exp_category": "Auto"
+    },
+    {
+      "keywords": ["LOTUS TEMPLE"],
+      "type": "In-Store",
+      "hl_exp_category": "Religious",
+      "exp_category": "Donations"
+    },
+    {
+      "keywords": ["JJ WATCH AND JEWELR"],
+      "type": "In-Store",
+      "hl_exp_category": "Shopping",
+      "exp_category": "Jewelry"
+    },
+    {
+      "keywords": ["CLIPPER"],
+      "type": "Transit",
+      "hl_exp_category": "Transit",
+      "exp_category": "Public Transit"
+    },
+    {
+      "keywords": ["CLASSY CORKS"],
+      "type": "In-Store",
+      "hl_exp_category": "Dining",
+      "exp_category": "Wine & Spirits"
+    },
+    {
+      "keywords": ["AMERICAN00"],
+      "type": "Online",
+      "hl_exp_category": "Travel",
+      "exp_category": "Airlines"
+    }
+  ]
+}

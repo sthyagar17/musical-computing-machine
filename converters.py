@@ -4,6 +4,7 @@ Converters: transform CSV, TSV, JSON, Image (OCR), and PDF files into Excel.
 
 import csv
 import io
+import json
 import os
 
 import pandas as pd
@@ -226,6 +227,26 @@ def _convert_image(input_path: str, output_path: str) -> None:
     df.to_excel(output_path, index=False, engine="openpyxl")
 
 
+def _load_rules():
+    """Load categorization rules from rules.json next to this module."""
+    rules_path = os.path.join(os.path.dirname(__file__), "rules.json")
+    try:
+        with open(rules_path, "r", encoding="utf-8") as f:
+            return json.load(f).get("rules", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _apply_rules(description, rules):
+    """Return (type, hl_exp_category, exp_category) for the first matching rule."""
+    desc_upper = description.upper()
+    for rule in rules:
+        for keyword in rule["keywords"]:
+            if keyword.upper() in desc_upper:
+                return rule["type"], rule["hl_exp_category"], rule["exp_category"]
+    return "", "", ""
+
+
 def _convert_pdf(input_path: str, output_path: str) -> None:
     """Convert PDF to Excel: extract transaction rows from credit card statements."""
     try:
@@ -236,6 +257,7 @@ def _convert_pdf(input_path: str, output_path: str) -> None:
             "Install it with: pip install pdfplumber"
         )
     import re
+    from datetime import datetime
 
     # Pattern: MM/DD at start, optional second MM/DD, description, then $amount
     txn_re = re.compile(
@@ -244,29 +266,91 @@ def _convert_pdf(input_path: str, output_path: str) -> None:
         r'(.+?)\s+'                     # Description
         r'(-?\$[\d,]+\.\d{2})\b'        # Amount
     )
+    # Pattern to extract billing period for year context: MM/DD/YY-MM/DD/YY
+    billing_re = re.compile(r'Billing Period:\s*(\d{2}/\d{2}/(\d{2}))-(\d{2}/\d{2}/(\d{2}))')
 
-    transactions = []
+    all_text = []
+    start_year = None
+    end_year = None
+
     try:
         with pdfplumber.open(input_path) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
                 if not text:
                     continue
-                for line in text.split('\n'):
-                    m = txn_re.match(line.strip())
-                    if m:
-                        amount = m.group(4)
-                        # Skip negative amounts (payments, credits, adjustments)
-                        if amount.startswith("-"):
-                            continue
-                        trans_date = m.group(1)
-                        post_date = m.group(2) or ""
-                        description = m.group(3).strip()
-                        transactions.append([
-                            trans_date, post_date, description, amount
-                        ])
+                all_text.append(text)
+
+                # Extract billing period years
+                if start_year is None:
+                    bm = billing_re.search(text)
+                    if bm:
+                        start_year = 2000 + int(bm.group(2))
+                        end_year = 2000 + int(bm.group(4))
     except Exception as exc:
         raise ConversionError(f"Failed to read PDF: {exc}")
+
+    if not all_text:
+        raise ConversionError("PDF contains no extractable text.")
+
+    # Fallback: try to get year from filename (e.g., "Jan 2024.pdf")
+    if start_year is None:
+        year_match = re.search(r'(20\d{2})', os.path.basename(input_path))
+        if year_match:
+            end_year = int(year_match.group(1))
+            start_year = end_year
+        else:
+            start_year = end_year = datetime.now().year
+
+    # Load categorization rules
+    rules = _load_rules()
+
+    # Parse transactions
+    MONTH_NAMES = [
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ]
+
+    transactions = []
+    for text in all_text:
+        for line in text.split('\n'):
+            m = txn_re.match(line.strip())
+            if not m:
+                continue
+            amount_str = m.group(4)
+            if amount_str.startswith("-"):
+                continue
+
+            trans_mm, trans_dd = m.group(1).split("/")
+            month = int(trans_mm)
+            day = int(trans_dd)
+
+            # Determine year: if billing spans Dec-Jan, Dec dates use start_year
+            if start_year != end_year and month >= 10:
+                year = start_year
+            else:
+                year = end_year
+
+            date_str = f"{month:02d}/{day:02d}/{year}"
+            month_name = MONTH_NAMES[month]
+            post_date = m.group(2) or ""
+            description = m.group(3).strip()
+            amount = float(amount_str.replace("$", "").replace(",", ""))
+
+            txn_type, hl_cat, exp_cat = _apply_rules(description, rules)
+
+            transactions.append([
+                post_date,      # Details (Post Date)
+                date_str,       # Date
+                month_name,     # Month
+                day,            # Day
+                year,           # Year
+                description,    # Description
+                amount,         # Amount
+                txn_type,       # Type
+                hl_cat,         # HL_Exp_Category
+                exp_cat,        # Exp_Category
+            ])
 
     if not transactions:
         raise ConversionError(
@@ -274,6 +358,8 @@ def _convert_pdf(input_path: str, output_path: str) -> None:
             "(Trans. Date, Post Date, Description, Amount)."
         )
 
-    df = pd.DataFrame(transactions,
-                       columns=["Trans. Date", "Post Date", "Description", "Amount"])
+    df = pd.DataFrame(transactions, columns=[
+        "Details", "Date", "Month", "Day", "Year",
+        "Description", "Amount", "Type", "HL_Exp_Category", "Exp_Category",
+    ])
     df.to_excel(output_path, index=False, engine="openpyxl")
